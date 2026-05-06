@@ -1,5 +1,6 @@
 /* ============================================
    COMERCIAL BUEN FE — JavaScript Principal
+   (versión con backend MySQL)
    ============================================ */
 
 /* ---- Carrito (localStorage) ---- */
@@ -25,8 +26,15 @@ function agregarAlCarrito(id, cantidad = 1) {
   if (existente) {
     existente.cantidad += cantidad;
   } else {
-    carrito.push({ id: producto.id, nombre: producto.nombre, categoria: producto.categoria,
-      precio: producto.precio, unidad: producto.unidad, icono: producto.icono, cantidad });
+    carrito.push({
+      id:        producto.id,
+      nombre:    producto.nombre,
+      categoria: producto.categoria_id,
+      precio:    producto.precio,
+      unidad:    producto.unidad,
+      icono:     producto.icono,
+      cantidad,
+    });
   }
   guardarCarrito();
   toast(`✅ ${producto.nombre} agregado al carrito`);
@@ -40,7 +48,10 @@ function toast(mensaje) {
   el.className = 'toast';
   el.textContent = mensaje;
   container.appendChild(el);
-  setTimeout(() => { el.style.animation = 'slideIn 0.3s ease reverse'; setTimeout(() => el.remove(), 280); }, 2800);
+  setTimeout(() => {
+    el.style.animation = 'slideIn 0.3s ease reverse';
+    setTimeout(() => el.remove(), 280);
+  }, 2800);
 }
 
 /* ---- Menú móvil ---- */
@@ -70,18 +81,25 @@ function marcarEnlaceActivo() {
    TARJETA HTML
    ============================================ */
 function tarjetaHTML(p) {
-  const badge = p.badge ? `<span class="tarjeta-badge ${p.badge}">${p.badge === 'popular' ? '⭐ Popular' : p.badge === 'nuevo' ? '✨ Nuevo' : p.badge}</span>` : '';
+  const catKey   = p.categoria_id || p.categoria; // API usa categoria_id, local usa categoria
+  const catLabel = CATEGORIA_LABELS[catKey] || p.categoria_nombre || catKey;
+  const badge = p.badge
+    ? `<span class="tarjeta-badge ${p.badge}">${
+        p.badge === 'popular' ? '⭐ Popular'
+          : p.badge === 'nuevo' ? '✨ Nuevo'
+          : p.badge}</span>`
+    : '';
   return `
     <article class="tarjeta-producto">
-      <a href="detalle.html?id=${p.id}" class="tarjeta-imagen">
-        ${badge}${p.icono}
+      <a href="detalle.html?id=${p.id}" class="tarjeta-imagen" style="text-decoration:none">
+        ${badge}${p.icono || '📦'}
       </a>
       <div class="tarjeta-cuerpo">
-        <div class="tarjeta-categoria">${CATEGORIA_LABELS[p.categoria]}</div>
+        <div class="tarjeta-categoria">${catLabel}</div>
         <h3 class="tarjeta-nombre"><a href="detalle.html?id=${p.id}">${p.nombre}</a></h3>
         <p class="tarjeta-descripcion">${p.descripcion.slice(0, 90)}${p.descripcion.length > 90 ? '…' : ''}</p>
         <div class="tarjeta-pie">
-          <div class="tarjeta-precio">$${p.precio.toFixed(2)} <span>/ ${p.unidad}</span></div>
+          <div class="tarjeta-precio">$${Number(p.precio).toFixed(2)} <span>/ ${p.unidad}</span></div>
           <button class="btn-agregar" data-id="${p.id}">🛒 Agregar</button>
         </div>
       </div>
@@ -94,52 +112,95 @@ function bindAgregarBtns(container) {
   });
 }
 
+/* ---- Skeleton de carga ---- */
+function skeletonCarga(grid, columnas = 4) {
+  grid.innerHTML = Array(columnas).fill(`
+    <div style="background:var(--fondo-claro);border-radius:var(--radio);height:320px;
+      animation:pulse 1.4s ease-in-out infinite;opacity:0.7"></div>
+  `).join('');
+}
+
 /* ============================================
-   INICIO — productos destacados
+   INICIO — productos destacados (populares)
    ============================================ */
-function initInicio() {
+async function initInicio() {
   const grid = document.getElementById('productos-destacados');
   if (!grid) return;
-  const destacados = PRODUCTOS.filter(p => p.badge === 'popular');
-  grid.innerHTML = destacados.map(tarjetaHTML).join('');
+
+  skeletonCarga(grid, 3);
+
+  const populares = PRODUCTOS.filter(p => p.badge === 'popular');
+  if (!populares.length) {
+    grid.innerHTML = '<p style="grid-column:1/-1;text-align:center;color:var(--texto-suave)">Sin productos destacados disponibles.</p>';
+    return;
+  }
+  grid.innerHTML = populares.map(tarjetaHTML).join('');
   bindAgregarBtns(grid);
 }
 
 /* ============================================
    CATÁLOGO
    ============================================ */
-function initCatalogo() {
+async function initCatalogo() {
   const grid = document.getElementById('productos-grid');
   if (!grid) return;
 
   let filtroActivo = 'todos';
-  let busqueda = '';
-  let orden = 'defecto';
+  let busqueda     = '';
+  let orden        = 'defecto';
 
   // Pre-seleccionar categoría desde URL
   const params = new URLSearchParams(window.location.search);
   if (params.get('cat')) {
     filtroActivo = params.get('cat');
     const btn = document.querySelector(`.filtro-btn[data-cat="${filtroActivo}"]`);
-    if (btn) { document.querySelectorAll('.filtro-btn').forEach(b => b.classList.remove('activo')); btn.classList.add('activo'); }
+    if (btn) {
+      document.querySelectorAll('.filtro-btn').forEach(b => b.classList.remove('activo'));
+      btn.classList.add('activo');
+    }
   }
 
-  function render() {
-    let lista = [...PRODUCTOS];
-    if (filtroActivo !== 'todos') lista = lista.filter(p => p.categoria === filtroActivo);
-    if (busqueda) { const q = busqueda.toLowerCase(); lista = lista.filter(p => p.nombre.toLowerCase().includes(q) || p.descripcion.toLowerCase().includes(q)); }
-    if (orden === 'precio-asc')  lista.sort((a, b) => a.precio - b.precio);
-    if (orden === 'precio-desc') lista.sort((a, b) => b.precio - a.precio);
-    if (orden === 'nombre')      lista.sort((a, b) => a.nombre.localeCompare(b.nombre));
+  async function render() {
+    skeletonCarga(grid, 4);
 
-    const info = document.getElementById('resultado-info');
-    if (info) info.textContent = `${lista.length} ${lista.length === 1 ? 'producto' : 'productos'} encontrados`;
+    try {
+      // Construir query params para la API
+      const qs = new URLSearchParams();
+      if (filtroActivo !== 'todos') qs.set('cat', filtroActivo);
+      if (busqueda)                  qs.set('q', busqueda);
+      if (orden !== 'defecto')       qs.set('orden', orden);
 
-    if (lista.length === 0) {
-      grid.innerHTML = `<div class="pagina-vacia" style="grid-column:1/-1"><div class="pagina-vacia-icono">🔍</div><h2>Sin resultados</h2><p>Prueba con otro término o categoría.</p></div>`;
-    } else {
-      grid.innerHTML = lista.map(tarjetaHTML).join('');
-      bindAgregarBtns(grid);
+      const lista = await apiFetch(`/productos?${qs}`);
+
+      const info = document.getElementById('resultado-info');
+      if (info) info.textContent =
+        `${lista.length} ${lista.length === 1 ? 'producto' : 'productos'} encontrados`;
+
+      if (!lista.length) {
+        grid.innerHTML = `<div class="pagina-vacia" style="grid-column:1/-1">
+          <div class="pagina-vacia-icono">🔍</div>
+          <h2>Sin resultados</h2>
+          <p>Prueba con otro término o categoría.</p></div>`;
+      } else {
+        grid.innerHTML = lista.map(tarjetaHTML).join('');
+        bindAgregarBtns(grid);
+      }
+    } catch {
+      // API no disponible → filtrado local con PRODUCTOS (cargado desde localStorage o fallback)
+      let lista = [...PRODUCTOS];
+      if (filtroActivo !== 'todos') lista = lista.filter(p => p.categoria === filtroActivo);
+      if (busqueda) { const q = busqueda.toLowerCase(); lista = lista.filter(p => p.nombre.toLowerCase().includes(q) || (p.descripcion||'').toLowerCase().includes(q)); }
+      if (orden === 'precio-asc')  lista.sort((a,b) => a.precio - b.precio);
+      if (orden === 'precio-desc') lista.sort((a,b) => b.precio - a.precio);
+      if (orden === 'nombre')      lista.sort((a,b) => a.nombre.localeCompare(b.nombre));
+      const info = document.getElementById('resultado-info');
+      if (info) info.textContent = `${lista.length} ${lista.length === 1 ? 'producto' : 'productos'} encontrados`;
+      if (!lista.length) {
+        grid.innerHTML = `<div class="pagina-vacia" style="grid-column:1/-1"><div class="pagina-vacia-icono">🔍</div><h2>Sin resultados</h2><p>Prueba con otro término o categoría.</p></div>`;
+      } else {
+        grid.innerHTML = lista.map(tarjetaHTML).join('');
+        bindAgregarBtns(grid);
+      }
     }
   }
 
@@ -153,82 +214,151 @@ function initCatalogo() {
   });
 
   const inputBusqueda = document.getElementById('busqueda');
-  if (inputBusqueda) inputBusqueda.addEventListener('input', e => { busqueda = e.target.value; render(); });
+  if (inputBusqueda) {
+    let debounceTimer;
+    inputBusqueda.addEventListener('input', e => {
+      busqueda = e.target.value;
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(render, 300); // debounce 300ms
+    });
+  }
 
   const selectOrden = document.getElementById('orden');
   if (selectOrden) selectOrden.addEventListener('change', e => { orden = e.target.value; render(); });
 
-  render();
+  await render();
 }
 
 /* ============================================
    DETALLE
    ============================================ */
-function initDetalle() {
+async function initDetalle() {
   const wrap = document.getElementById('detalle-contenido');
   if (!wrap) return;
 
   const id = parseInt(new URLSearchParams(window.location.search).get('id'));
-  const p  = PRODUCTOS.find(x => x.id === id);
-
-  if (!p) {
-    wrap.innerHTML = `<div class="pagina-vacia"><div class="pagina-vacia-icono">😕</div><h2>Producto no encontrado</h2><p>El producto que buscas no existe.</p><a href="catalogo.html" class="btn btn-verde">Ver Catálogo</a></div>`;
+  if (isNaN(id)) {
+    wrap.innerHTML = paginaVaciaHTML('😕', 'ID inválido', 'El enlace que usaste no es correcto.', 'catalogo.html', 'Ver Catálogo');
     return;
   }
 
-  document.title = `${p.nombre} — Comercial Buen Fe`;
+  // Mostrar loading
+  wrap.innerHTML = `<div style="text-align:center;padding:80px 0">
+    <div style="font-size:60px;margin-bottom:16px;animation:spin 1.5s linear infinite">⏳</div>
+    <p style="color:var(--texto-suave)">Cargando producto…</p></div>`;
 
-  const atributos = p.atributos || ['100% Natural', 'Peso exacto', 'Envío rápido', 'Empaque sellado'];
+  try {
+    // Cargar producto y relacionados en paralelo
+    const [p, relacionados] = await Promise.all([
+      apiFetch(`/productos/${id}`),
+      apiFetch(`/productos/${id}/relacionados`),
+    ]);
 
-  wrap.innerHTML = `
-    <div class="detalle-layout">
-      <div class="detalle-imagen-area">${p.icono}</div>
-      <div>
-        <div class="detalle-breadcrumb">
-          <a href="index.html">Inicio</a> / <a href="catalogo.html">Catálogo</a> / <span>${p.nombre}</span>
-        </div>
-        <div class="detalle-categoria">${CATEGORIA_LABELS[p.categoria]}</div>
-        <h1 class="detalle-nombre">${p.nombre}</h1>
-        <div class="detalle-rating">
-          <span class="estrellas">★★★★★</span>
-          <span style="font-size:13px;color:var(--texto-suave)">4.9 · 32 reseñas</span>
-        </div>
-        <div class="detalle-precio">$${p.precio.toFixed(2)}</div>
-        <div class="detalle-precio-unidad">precio por libra</div>
-        <p class="detalle-descripcion">${p.descripcion}</p>
-        <div class="detalle-atributos">
-          ${atributos.map(a => `<div class="atributo"><div class="atributo-icono">✓</div><span>${a}</span></div>`).join('')}
-        </div>
-        <div class="detalle-cantidad-label">Cantidad (lb):</div>
-        <div class="detalle-cantidad-row">
-          <div class="detalle-cantidad-control">
-            <button class="detalle-cantidad-btn" id="btn-menos">−</button>
-            <span class="detalle-cantidad-valor" id="cant-val">1</span>
-            <button class="detalle-cantidad-btn" id="btn-mas">+</button>
+    document.title = `${p.nombre} — Comercial Buen Fe`;
+
+    const atributos = p.atributos?.length
+      ? p.atributos
+      : ['100% Natural', 'Peso exacto', 'Envío rápido', 'Empaque sellado'];
+
+    wrap.innerHTML = `
+      <div class="detalle-layout">
+        <div class="detalle-imagen-area">${p.icono}</div>
+        <div>
+          <div class="detalle-breadcrumb">
+            <a href="index.html">Inicio</a> / <a href="catalogo.html">Catálogo</a> / <span>${p.nombre}</span>
           </div>
-          <div class="detalle-precio-total">Total: <strong id="precio-total">$${p.precio.toFixed(2)}</strong></div>
+          <div class="detalle-categoria">${p.categoria_nombre}</div>
+          <h1 class="detalle-nombre">${p.nombre}</h1>
+          <div class="detalle-rating">
+            <span class="estrellas">★★★★★</span>
+            <span style="font-size:13px;color:var(--texto-suave)">4.9 · 32 reseñas</span>
+          </div>
+          <div class="detalle-precio">$${Number(p.precio).toFixed(2)}</div>
+          <div class="detalle-precio-unidad">precio por libra</div>
+          <p class="detalle-descripcion">${p.descripcion}</p>
+          <div class="detalle-atributos">
+            ${atributos.map(a => `<div class="atributo">
+              <div class="atributo-icono">✓</div><span>${a}</span></div>`).join('')}
+          </div>
+          <div class="detalle-cantidad-label">Cantidad (lb):</div>
+          <div class="detalle-cantidad-row">
+            <div class="detalle-cantidad-control">
+              <button class="detalle-cantidad-btn" id="btn-menos">−</button>
+              <span class="detalle-cantidad-valor" id="cant-val">1</span>
+              <button class="detalle-cantidad-btn" id="btn-mas">+</button>
+            </div>
+            <div class="detalle-precio-total">Total: <strong id="precio-total">$${Number(p.precio).toFixed(2)}</strong></div>
+          </div>
+          <div class="detalle-botones">
+            <button class="btn btn-verde btn-lg" id="btn-agregar-detalle">🛒 Agregar al carrito</button>
+            <a href="catalogo.html" class="btn btn-outline">← Volver</a>
+          </div>
         </div>
-        <div class="detalle-botones">
-          <button class="btn btn-verde btn-lg" id="btn-agregar-detalle">🛒 Agregar al carrito</button>
-          <a href="catalogo.html" class="btn btn-outline">← Volver</a>
-        </div>
-      </div>
-    </div>`;
+      </div>`;
 
-  let cant = 1;
-  const cantEl   = document.getElementById('cant-val');
-  const totalEl  = document.getElementById('precio-total');
-  function actualizarCant() { cantEl.textContent = cant; totalEl.textContent = `$${(p.precio * cant).toFixed(2)}`; }
-  document.getElementById('btn-menos').addEventListener('click', () => { if (cant > 1) { cant--; actualizarCant(); } });
-  document.getElementById('btn-mas').addEventListener('click',   () => { cant++; actualizarCant(); });
-  document.getElementById('btn-agregar-detalle').addEventListener('click', () => agregarAlCarrito(p.id, cant));
+    // Controles de cantidad
+    let cant = 1;
+    const cantEl  = document.getElementById('cant-val');
+    const totalEl = document.getElementById('precio-total');
+    function actualizarCant() {
+      cantEl.textContent  = cant;
+      totalEl.textContent = `$${(p.precio * cant).toFixed(2)}`;
+    }
+    document.getElementById('btn-menos').addEventListener('click', () => { if (cant > 1) { cant--; actualizarCant(); } });
+    document.getElementById('btn-mas').addEventListener('click',   () => { cant++; actualizarCant(); });
+    document.getElementById('btn-agregar-detalle').addEventListener('click', () => agregarAlCarrito(p.id, cant));
 
-  // Productos relacionados
-  const relWrap = document.getElementById('relacionados-grid');
-  if (relWrap) {
-    const rel = PRODUCTOS.filter(x => x.categoria === p.categoria && x.id !== p.id).slice(0, 4);
-    relWrap.innerHTML = rel.map(tarjetaHTML).join('');
-    bindAgregarBtns(relWrap);
+    // Relacionados
+    const relWrap = document.getElementById('relacionados-grid');
+    if (relWrap && relacionados.length) {
+      relWrap.innerHTML = relacionados.map(tarjetaHTML).join('');
+      bindAgregarBtns(relWrap);
+    }
+  } catch (err) {
+    // API no disponible → buscar en PRODUCTOS local
+    const noEncontrado = err.message?.includes('404');
+    const local = noEncontrado ? null : PRODUCTOS.find(x => x.id === id);
+    if (local) {
+      document.title = `${local.nombre} — Comercial Buen Fe`;
+      const atributos = local.atributos?.length ? local.atributos : ['100% Natural', 'Peso exacto', 'Envío rápido', 'Empaque sellado'];
+      wrap.innerHTML = `
+        <div class="detalle-layout">
+          <div class="detalle-imagen-area">${local.icono || '📦'}</div>
+          <div>
+            <div class="detalle-breadcrumb"><a href="index.html">Inicio</a> / <a href="catalogo.html">Catálogo</a> / <span>${local.nombre}</span></div>
+            <div class="detalle-categoria">${CATEGORIA_LABELS[local.categoria] || local.categoria}</div>
+            <h1 class="detalle-nombre">${local.nombre}</h1>
+            <div class="detalle-rating"><span class="estrellas">★★★★★</span><span style="font-size:13px;color:var(--texto-suave)">4.9 · 32 reseñas</span></div>
+            <div class="detalle-precio">$${Number(local.precio).toFixed(2)}</div>
+            <div class="detalle-precio-unidad">precio por ${local.unidad}</div>
+            <p class="detalle-descripcion">${local.descripcion}</p>
+            <div class="detalle-atributos">${atributos.map(a=>`<div class="atributo"><div class="atributo-icono">✓</div><span>${a}</span></div>`).join('')}</div>
+            <div class="detalle-cantidad-label">Cantidad (${local.unidad}):</div>
+            <div class="detalle-cantidad-row">
+              <div class="detalle-cantidad-control">
+                <button class="detalle-cantidad-btn" id="btn-menos">−</button>
+                <span class="detalle-cantidad-valor" id="cant-val">1</span>
+                <button class="detalle-cantidad-btn" id="btn-mas">+</button>
+              </div>
+              <div class="detalle-precio-total">Total: <strong id="precio-total">$${Number(local.precio).toFixed(2)}</strong></div>
+            </div>
+            <div class="detalle-botones">
+              <button class="btn btn-verde btn-lg" id="btn-agregar-detalle">🛒 Agregar al carrito</button>
+              <a href="catalogo.html" class="btn btn-outline">← Volver</a>
+            </div>
+          </div>
+        </div>`;
+      let cant = 1;
+      const cantEl = document.getElementById('cant-val'), totalEl = document.getElementById('precio-total');
+      const upd = () => { cantEl.textContent = cant; totalEl.textContent = `$${(local.precio * cant).toFixed(2)}`; };
+      document.getElementById('btn-menos').addEventListener('click', () => { if (cant > 1) { cant--; upd(); } });
+      document.getElementById('btn-mas').addEventListener('click',   () => { cant++; upd(); });
+      document.getElementById('btn-agregar-detalle').addEventListener('click', () => agregarAlCarrito(local.id, cant));
+      const relWrap = document.getElementById('relacionados-grid');
+      if (relWrap) { const rel = PRODUCTOS.filter(x => x.categoria === local.categoria && x.id !== local.id).slice(0,4); relWrap.innerHTML = rel.map(tarjetaHTML).join(''); bindAgregarBtns(relWrap); }
+    } else {
+      wrap.innerHTML = paginaVaciaHTML('😕', noEncontrado ? 'Producto no encontrado' : 'Error de conexión', noEncontrado ? 'El producto que buscas no existe.' : 'No se pudo cargar el producto.', 'catalogo.html', 'Ver Catálogo');
+    }
   }
 }
 
@@ -242,7 +372,9 @@ function initCarrito() {
 
   function render() {
     if (carrito.length === 0) {
-      contenedor.innerHTML = `<div class="pagina-vacia"><div class="pagina-vacia-icono">🛒</div><h2>Tu carrito está vacío</h2><p>Explora nuestro catálogo y añade tus productos favoritos.</p><a href="catalogo.html" class="btn btn-verde">Ver Catálogo</a></div>`;
+      contenedor.innerHTML = paginaVaciaHTML('🛒', 'Tu carrito está vacío',
+        'Explora nuestro catálogo y añade tus productos favoritos.',
+        'catalogo.html', 'Ver Catálogo');
       if (resumen) resumen.style.display = 'none';
       return;
     }
@@ -250,6 +382,7 @@ function initCarrito() {
     const subtotal = carrito.reduce((s, i) => s + i.precio * i.cantidad, 0);
     const envio    = subtotal >= 30 ? 0 : 5.00;
     const total    = subtotal + envio;
+    const catLabel = id => CATEGORIA_LABELS[id] || id;
 
     contenedor.innerHTML = `
       <div class="carrito-tabla">
@@ -262,10 +395,10 @@ function initCarrito() {
               <div class="carrito-producto-icon">${item.icono}</div>
               <div>
                 <div class="carrito-producto-nombre">${item.nombre}</div>
-                <div class="carrito-producto-cat">${CATEGORIA_LABELS[item.categoria] || item.categoria}</div>
+                <div class="carrito-producto-cat">${catLabel(item.categoria)}</div>
               </div>
             </div>
-            <div class="carrito-precio-unit">$${item.precio.toFixed(2)}/${item.unidad}</div>
+            <div class="carrito-precio-unit">$${Number(item.precio).toFixed(2)}/${item.unidad}</div>
             <div class="cantidad-control">
               <button class="cantidad-btn" data-accion="restar" data-id="${item.id}">−</button>
               <span class="cantidad-valor">${item.cantidad}</span>
@@ -280,19 +413,35 @@ function initCarrito() {
       resumen.style.display = 'block';
       resumen.innerHTML = `
         <h3>Resumen del pedido</h3>
-        <div class="resumen-linea"><span>Subtotal (${carrito.reduce((s,i)=>s+i.cantidad,0)} productos)</span><span>$${subtotal.toFixed(2)}</span></div>
-        <div class="resumen-linea"><span>Envío</span><span>${envio === 0 ? '<span style="color:var(--verde-brillante);font-weight:600">Gratis</span>' : '$' + envio.toFixed(2)}</span></div>
+        <div class="resumen-linea">
+          <span>Subtotal (${carrito.reduce((s,i)=>s+i.cantidad,0)} productos)</span>
+          <span>$${subtotal.toFixed(2)}</span></div>
+        <div class="resumen-linea">
+          <span>Envío</span>
+          <span>${envio === 0
+            ? '<span style="color:var(--verde-brillante);font-weight:600">Gratis</span>'
+            : '$' + envio.toFixed(2)}</span></div>
         ${envio > 0 ? `<p class="resumen-nota">Envío gratis en pedidos ≥ $30.00</p>` : ''}
         <div class="resumen-total"><span>Total</span><span>$${total.toFixed(2)}</span></div>
-        <button class="btn btn-verde" style="width:100%;justify-content:center;margin-top:18px" onclick="alert('¡Gracias por tu interés!\\nProximamente implementaremos el sistema de pagos en línea.\\n\\nPor ahora, contáctanos para coordinar tu pedido.')">
+        <button class="btn btn-verde"
+          style="width:100%;justify-content:center;margin-top:18px"
+          id="btn-pagar">
           Proceder al pago 🔒
         </button>
-        <a href="catalogo.html" class="btn btn-outline" style="width:100%;justify-content:center;margin-top:10px">Seguir comprando</a>`;
+        <a href="catalogo.html" class="btn btn-outline"
+          style="width:100%;justify-content:center;margin-top:10px">
+          Seguir comprando
+        </a>`;
+
+      document.getElementById('btn-pagar')?.addEventListener('click', () => {
+        alert('¡Gracias por tu interés!\nProximamente implementaremos el sistema de pagos en línea.\n\nPor ahora, contáctanos para coordinar tu pedido.');
+      });
     }
 
+    // Botones cantidad y eliminar
     contenedor.querySelectorAll('.cantidad-btn').forEach(btn => {
       btn.addEventListener('click', () => {
-        const id = parseInt(btn.dataset.id);
+        const id   = parseInt(btn.dataset.id);
         const item = carrito.find(i => i.id === id);
         if (!item) return;
         btn.dataset.accion === 'sumar' ? item.cantidad++ : item.cantidad--;
@@ -326,16 +475,32 @@ function initContacto() {
   });
 }
 
+/* ---- Helper: pantalla vacía ---- */
+function paginaVaciaHTML(icono, titulo, texto, href, btnLabel) {
+  return `<div class="pagina-vacia">
+    <div class="pagina-vacia-icono">${icono}</div>
+    <h2>${titulo}</h2>
+    <p>${texto}</p>
+    <a href="${href}" class="btn btn-verde">${btnLabel}</a>
+  </div>`;
+}
+
 /* ============================================
    INIT
    ============================================ */
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+  // 1. Cargar productos y categorías desde la API
+  await cargarDatos();
+
+  // 2. Inicializar UI
   actualizarBadges();
   marcarEnlaceActivo();
   initMenuMovil();
-  initInicio();
-  initCatalogo();
-  initDetalle();
+
+  // 3. Módulos por página (solo se activan si el elemento existe en el DOM)
+  await initInicio();
+  await initCatalogo();
+  await initDetalle();
   initCarrito();
   initContacto();
 });

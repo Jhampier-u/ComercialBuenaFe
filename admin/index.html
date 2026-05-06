@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard — Admin Comercial Buen Fe</title>
+  <link rel="stylesheet" href="CSS/admin.css">
+</head>
+<body>
+<div class="admin-layout">
+
+  <!-- Sidebar (rellenado por JS) -->
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="overlay-sidebar" id="sidebar-overlay"></div>
+
+  <!-- Main Content -->
+  <div class="main-content">
+    <header class="topbar">
+      <div class="topbar-left">
+        <button class="menu-toggle-admin" id="menu-toggle-admin" style="display:none">☰</button>
+        <h1 class="topbar-titulo">📊 Dashboard</h1>
+      </div>
+      <div class="topbar-right">
+        <span class="topbar-badge">🟢 En línea</span>
+        <a href="../index.html" target="_blank" class="btn btn-outline btn-sm">Ver sitio 🌐</a>
+      </div>
+    </header>
+
+    <main class="page-content" id="page-dashboard">
+
+      <!-- Stat Cards -->
+      <div class="stats-grid">
+        <div class="stat-card verde">
+          <div class="stat-icon">🛒</div>
+          <div>
+            <div class="stat-num" id="stat-productos">—</div>
+            <div class="stat-label">Productos activos</div>
+          </div>
+        </div>
+        <div class="stat-card marron">
+          <div class="stat-icon">🗂️</div>
+          <div>
+            <div class="stat-num" id="stat-categorias">—</div>
+            <div class="stat-label">Categorías</div>
+          </div>
+        </div>
+        <div class="stat-card dorado">
+          <div class="stat-icon">⭐</div>
+          <div>
+            <div class="stat-num" id="stat-populares">—</div>
+            <div class="stat-label">Productos populares</div>
+          </div>
+        </div>
+        <div class="stat-card azul">
+          <div class="stat-icon">✅</div>
+          <div>
+            <div class="stat-num">100%</div>
+            <div class="stat-label">Datos en local</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Dos columnas -->
+      <div style="display:grid;grid-template-columns:1.4fr 1fr;gap:20px;margin-bottom:20px">
+
+        <!-- Últimos productos -->
+        <div class="card">
+          <div class="card-header">
+            <span class="card-titulo">Productos recientes</span>
+            <a href="productos.html" class="btn btn-outline btn-sm">Ver todos →</a>
+          </div>
+          <div class="tabla-wrap">
+            <table class="tabla">
+              <thead>
+                <tr>
+                  <th></th>
+                  <th>Nombre</th>
+                  <th>Badge</th>
+                  <th>Precio</th>
+                  <th>Estado</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="ultimos-productos">
+                <tr><td colspan="6" style="text-align:center;padding:28px;color:var(--text-soft)">Cargando…</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Resumen por categoría -->
+        <div class="card">
+          <div class="card-header">
+            <span class="card-titulo">Por categoría</span>
+            <a href="categorias.html" class="btn btn-outline btn-sm">Gestionar →</a>
+          </div>
+          <div class="tabla-wrap">
+            <table class="tabla">
+              <thead>
+                <tr>
+                  <th>Categoría</th>
+                  <th>Productos</th>
+                  <th>%</th>
+                  <th>Estado</th>
+                </tr>
+              </thead>
+              <tbody id="resumen-categorias">
+                <tr><td colspan="4" style="text-align:center;padding:28px;color:var(--text-soft)">Cargando…</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Acciones rápidas -->
+      <div class="card">
+        <div class="card-header">
+          <span class="card-titulo">Acciones rápidas</span>
+        </div>
+        <div class="card-body" style="display:flex;gap:12px;flex-wrap:wrap">
+          <a href="productos.html" class="btn btn-verde">➕ Nuevo producto</a>
+          <a href="categorias.html" class="btn btn-marron">🗂️ Nueva categoría</a>
+          <a href="../catalogo.html" target="_blank" class="btn btn-outline">👁️ Ver catálogo</a>
+          <a href="../contacto.html" target="_blank" class="btn btn-outline">📞 Ver contacto</a>
+        </div>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<!-- Confirm Dialog (global) -->
+<div class="confirm-overlay" id="confirm-overlay">
+  <div class="confirm-card">
+    <div class="confirm-icon">⚠️</div>
+    <div class="confirm-titulo" id="confirm-titulo">¿Estás seguro?</div>
+    <div class="confirm-texto"  id="confirm-texto">Esta acción no se puede deshacer.</div>
+    <div class="confirm-botones">
+      <button class="btn btn-outline"  id="confirm-cancelar">Cancelar</button>
+      <button class="btn btn-danger"   id="confirm-ok">Confirmar</button>
+    </div>
+  </div>
+</div>
+
+<script src="JS/admin.js"></script>
+</body>
+</html>

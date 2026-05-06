@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Productos — Admin Comercial Buen Fe</title>
+  <link rel="stylesheet" href="CSS/admin.css">
+</head>
+<body>
+<div class="admin-layout">
+
+  <!-- Sidebar (rellenado por JS) -->
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="overlay-sidebar" id="sidebar-overlay"></div>
+
+  <!-- Main Content -->
+  <div class="main-content">
+    <header class="topbar">
+      <div class="topbar-left">
+        <button class="menu-toggle-admin" id="menu-toggle-admin" style="display:none">☰</button>
+        <h1 class="topbar-titulo">🛒 Productos</h1>
+      </div>
+      <div class="topbar-right">
+        <button class="btn btn-verde" id="btn-nuevo-producto">➕ Nuevo producto</button>
+      </div>
+    </header>
+
+    <main class="page-content" id="page-productos">
+
+      <div class="card">
+        <!-- Controles de tabla -->
+        <div class="card-header">
+          <span class="card-titulo" id="productos-count">0 productos</span>
+          <div class="tabla-controles">
+            <input type="search" id="busqueda-productos" class="input-busqueda" placeholder="🔍 Buscar…">
+            <select id="filtro-cat" class="select-filtro">
+              <option value="">Todas las categorías</option>
+            </select>
+            <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text-soft);cursor:pointer">
+              <input type="checkbox" id="toggle-inactivos" style="accent-color:var(--verde)">
+              Ver ocultos
+            </label>
+          </div>
+        </div>
+
+        <!-- Tabla -->
+        <div class="tabla-wrap">
+          <table class="tabla">
+            <thead>
+              <tr>
+                <th style="width:50px"></th>
+                <th>Producto</th>
+                <th>Categoría</th>
+                <th>Precio</th>
+                <th>Badge</th>
+                <th>Estado</th>
+                <th style="width:90px">Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="productos-tbody">
+              <tr><td colspan="7" style="text-align:center;padding:40px;color:var(--text-soft)">Cargando…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<!-- ============================================
+     MODAL: PRODUCTO
+     ============================================ -->
+<div class="modal-overlay" id="modal-producto-overlay">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-titulo" id="modal-producto-titulo">Nuevo Producto</span>
+      <button class="modal-close" title="Cerrar">✕</button>
+    </div>
+    <div class="modal-body">
+      <form id="form-producto" novalidate>
+
+        <!-- Fila: nombre + categoría -->
+        <div class="form-row">
+          <div class="form-grupo">
+            <label for="prod-nombre">Nombre *</label>
+            <input type="text" id="prod-nombre" name="nombre" placeholder="Ej: Nueces Peladas" required>
+          </div>
+          <div class="form-grupo">
+            <label for="prod-categoria">Categoría *</label>
+            <select id="prod-categoria" name="categoria" required>
+              <option value="">Selecciona…</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Fila: precio + unidad + badge -->
+        <div class="form-row-3">
+          <div class="form-grupo">
+            <label for="prod-precio">Precio * ($)</label>
+            <input type="number" id="prod-precio" name="precio" placeholder="0.00" step="0.01" min="0" required>
+          </div>
+          <div class="form-grupo">
+            <label for="prod-unidad">Unidad *</label>
+            <select id="prod-unidad" name="unidad" required>
+              <option value="lb">lb (libra)</option>
+              <option value="kg">kg (kilogramo)</option>
+              <option value="g">g (gramo)</option>
+              <option value="100g">100g</option>
+              <option value="unidad">unidad</option>
+            </select>
+          </div>
+          <div class="form-grupo">
+            <label for="prod-badge">Badge</label>
+            <select id="prod-badge" name="badge">
+              <option value="">Sin badge</option>
+              <option value="popular">⭐ Popular</option>
+              <option value="nuevo">✨ Nuevo</option>
+              <option value="oferta">🔥 Oferta</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Fila: emoji + preview -->
+        <div class="form-row" style="align-items:flex-end">
+          <div class="form-grupo" style="margin-bottom:0">
+            <label for="prod-icono">Emoji / Icono</label>
+            <input type="text" id="prod-icono" name="icono" placeholder="🌰" maxlength="4">
+            <div class="form-hint">Pega un emoji para representar el producto</div>
+          </div>
+          <div style="text-align:center;padding-bottom:4px">
+            <div class="form-hint" style="margin-bottom:4px">Vista previa</div>
+            <div id="emoji-preview" style="font-size:42px;line-height:1">📦</div>
+          </div>
+        </div>
+
+        <!-- Descripción -->
+        <div class="form-grupo" style="margin-top:14px">
+          <label for="prod-descripcion">Descripción *</label>
+          <textarea id="prod-descripcion" name="descripcion" placeholder="Descripción del producto…" required></textarea>
+        </div>
+
+        <!-- Atributos dinámicos -->
+        <div class="form-grupo">
+          <label>Atributos del producto</label>
+          <div class="atributos-wrap" id="atributos-container">
+            <div class="atributos-tags"></div>
+            <div class="atributos-add">
+              <input type="text" placeholder="Escribe un atributo y presiona Enter…" maxlength="50">
+              <button type="button" class="btn btn-outline btn-sm atributos-add-btn">+ Añadir</button>
+            </div>
+          </div>
+          <div class="form-hint">Ej: "Sin gluten", "Alto en proteína", "100% natural"</div>
+        </div>
+
+        <!-- Activo -->
+        <div class="form-grupo" style="display:flex;align-items:center;gap:8px;border-top:1px solid var(--border);padding-top:14px;margin-top:4px">
+          <input type="checkbox" id="prod-activo" name="activo" checked style="width:auto;accent-color:var(--verde)">
+          <label for="prod-activo" style="margin:0;text-transform:none;letter-spacing:0;font-size:14px;color:var(--text);cursor:pointer">
+            Producto visible en el catálogo
+          </label>
+        </div>
+
+      </form>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-outline modal-close">Cancelar</button>
+      <button type="submit" form="form-producto" class="btn btn-verde" id="modal-producto-guardar">Crear producto</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================
+     CONFIRM DIALOG (global)
+     ============================================ -->
+<div class="confirm-overlay" id="confirm-overlay">
+  <div class="confirm-card">
+    <div class="confirm-icon">🗑️</div>
+    <div class="confirm-titulo" id="confirm-titulo">¿Eliminar producto?</div>
+    <div class="confirm-texto"  id="confirm-texto">Esta acción no se puede deshacer.</div>
+    <div class="confirm-botones">
+      <button class="btn btn-outline" id="confirm-cancelar">Cancelar</button>
+      <button class="btn btn-danger"  id="confirm-ok">Sí, eliminar</button>
+    </div>
+  </div>
+</div>
+
+<script src="JS/admin.js"></script>
+</body>
+</html>

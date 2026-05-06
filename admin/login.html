@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Iniciar Sesión — Admin Comercial Buen Fe</title>
+  <link rel="stylesheet" href="CSS/admin.css">
+</head>
+<body class="login-page">
+
+  <div class="login-card">
+    <div class="login-logo">
+      <img src="../Imágenes/LOGO.jpg" alt="Comercial Buen Fe" onerror="this.style.display='none'">
+      <h1>Comercial Buen Fe</h1>
+      <p>Panel de Administración</p>
+    </div>
+
+    <div style="text-align:center;margin-bottom:24px">
+      <span class="login-badge">🔒 Acceso restringido</span>
+    </div>
+
+    <div id="login-error" class="login-error"></div>
+
+    <form id="login-form" novalidate>
+      <div class="form-grupo">
+        <label for="usuario">Usuario</label>
+        <input type="text" id="usuario" name="usuario" placeholder="Ingresa tu usuario" autocomplete="username" required autofocus>
+      </div>
+      <div class="form-grupo">
+        <label for="contrasena">Contraseña</label>
+        <input type="password" id="contrasena" name="contrasena" placeholder="Ingresa tu contraseña" autocomplete="current-password" required>
+      </div>
+      <button type="submit" class="btn btn-verde btn-full" style="margin-top:6px;padding:11px">
+        Iniciar sesión →
+      </button>
+    </form>
+
+    <div class="login-hint">
+      Credenciales por defecto:<br>
+      <code>admin</code> / <code>BuenFe2024!</code>
+    </div>
+  </div>
+
+  <script src="JS/admin.js"></script>
+</body>
+</html>
